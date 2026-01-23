@@ -1,0 +1,176 @@
+{
+  "name": "AI Assisted Smart Irrigation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "topics": "irrigation/data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "name": "MQTT Trigger"
+    },
+    {
+      "parameters": {
+        "cityName": "Example City",
+        "language": "en"
+      },
+      "type": "n8n-nodes-base.openWeatherMap",
+      "typeVersion": 1,
+      "position": [208, 0],
+      "name": "OpenWeatherMap"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [272, 208],
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "irrigation_memory_example"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [432, 208],
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert AI Agronomist.\n\nCRITICAL SENSOR LOGIC:\n- The soil moisture sensors return RAW ADC values (0 to 4095).\n- LOWER values mean the soil is WET.\n- HIGHER values mean the soil is DRY.\n- Target is to keep moisture values BELOW 2000.\n\nINPUT DATA:\n- Soil Moisture Raw Data comes from MQTT messages.\n- Weather condition and temperature are fetched from a weather API.\n\nDECISION RULES:\n1. Calculate the average of 5 sensors.\n2. If rain is detected or forecast, do not irrigate.\n3. If it is sunny and hot, evaluate soil moisture.\n4. If average is BELOW 2000, irrigation duration must be 0.\n5. If average is ABOVE 2000 and no rain is expected, irrigation is required.\n6. Scale irrigation duration between short and long periods based on dryness.\n\nReturn ONLY valid JSON with keys: water (boolean), duration (minutes), explanation (English).",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [416, 0],
+      "name": "AI Decision Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"water\": true,\n  \"duration\": 10,\n  \"explanation\": \"Soil is dry and no rain is expected. Irrigation started.\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [592, 208],
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "topic": "irrigation/pump",
+        "sendInputData": false,
+        "message": "={{ $json.output.duration.toString() }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [768, 0],
+      "name": "MQTT Publish"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.output.explanation }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [976, 0],
+      "name": "Send Notification"
+    }
+  ],
+  "connections": {
+    "MQTT Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenWeatherMap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenWeatherMap": {
+      "main": [
+        [
+          {
+            "node": "AI Decision Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Decision Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Decision Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Decision Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Decision Agent": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MQTT Publish": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
