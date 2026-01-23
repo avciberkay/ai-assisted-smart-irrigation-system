@@ -13,3 +13,7 @@ Design considerations:
 
 This enclosure represents a functional prototype design.
 It is intended to show mechanical design capability and understanding of battery safety constraints.
+
+### Preview
+
+A rendered preview of the battery enclosure is available in the `screenshots/` directory.
