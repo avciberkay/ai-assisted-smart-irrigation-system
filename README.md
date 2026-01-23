@@ -97,6 +97,8 @@ All backend services are containerized and reproducible.
 
 Deployment notes and docker compose files are included in the backend and deployment folders.
 
+The backend architecture, container setup, and service roles are documented in the `backend/` directory.
+
 ---
 
 ## AI integration
